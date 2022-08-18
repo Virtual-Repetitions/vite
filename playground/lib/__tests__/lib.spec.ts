@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  getBg,
   isBuild,
   isServe,
   page,
@@ -25,6 +26,18 @@ describe.runIf(isBuild)('build', () => {
     const code = readFile('dist/my-lib-custom-filename.iife.js')
     // esbuild helpers are injected inside of the IIFE wrapper
     expect(code).toMatch(/^var MyLib=function\(\){"use strict";/)
+  })
+
+  test('lib: emitAssetsWithModule:undefined|false = is inlined', async () => {
+    const match = `data:image/png;base64`
+    expect(await getBg('.emitAssetsWithModule-default')).toMatch(match)
+  })
+
+  test('lib: emitAssetsWithModule:true = is emitted', async () => {
+    const code = readFile('dist/lib2/emit-assets-with-module.js')
+    expect(code).toMatch(/^import img from "\.\/assets\/asset\..*\.png";/)
+    const cssCode = readFile('dist/lib2/style.css')
+    expect(cssCode).toMatch(/url\('\.\/assets\/asset\..*\.png'\)/)
   })
 
   test('Library mode does not include `preload`', async () => {

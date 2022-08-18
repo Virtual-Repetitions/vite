@@ -19,6 +19,7 @@ import { cleanUrl, getHash, normalizePath } from '../utils'
 import { FS_PREFIX } from '../constants'
 
 export const assetUrlRE = /__VITE_ASSET__([a-z\d]{8})__(?:\$_(.*?)__)?/g
+const assetUrlRENoGFlag = /__VITE_ASSET__([a-z\d]{8})__(?:\$_(.*?)__)?/
 
 const rawRE = /(\?|&)raw(?:&|$)/
 const urlRE = /(\?|&)url(?:&|$)/
@@ -70,13 +71,18 @@ export function renderAssetUrlInJS(
     const file = getAssetFilename(hash, config) || ctx.getFileName(hash)
     chunk.viteMetadata.importedAssets.add(cleanUrl(file))
     const filename = file + postfix
+    const isEmitAssetsWithModule = config.build.lib && config.build.lib.emitAssetsWithModule
     const replacement = toOutputFilePathInString(
       filename,
       'asset',
       chunk.fileName,
       'js',
-      config,
-      opts.format
+      { ...config, base: isEmitAssetsWithModule ? './' : config.base },
+          opts.format,
+          isEmitAssetsWithModule
+            ? (filename, importer) =>
+                `./${path.posix.relative(path.dirname(importer), filename)}`
+            : undefined
     )
     const replacementString =
       typeof replacement === 'string'
@@ -132,6 +138,9 @@ export function assetPlugin(config: ResolvedConfig): Plugin {
     },
 
     resolveId(id) {
+      if (assetUrlRENoGFlag.test(id)) {
+        return { id, external: 'absolute' }
+      }
       if (!config.assetsInclude(cleanUrl(id))) {
         return
       }
@@ -165,6 +174,10 @@ export function assetPlugin(config: ResolvedConfig): Plugin {
 
       id = id.replace(urlRE, '$1').replace(/[\?&]$/, '')
       const url = await fileToUrl(id, config, this)
+      const isEmitAssetsWithModule = config.build.lib && config.build.lib.emitAssetsWithModule
+      if (isEmitAssetsWithModule) {
+        return `import img from ${JSON.stringify(url)};export default img;`
+      }
       return `export default ${JSON.stringify(url)}`
     },
 
@@ -432,7 +445,7 @@ async function fileToBuiltUrl(
 
   let url: string
   if (
-    config.build.lib ||
+    (config.build.lib && !config.build.lib.emitAssetsWithModule) ||
     (!file.endsWith('.svg') &&
       !file.endsWith('.html') &&
       content.length < Number(config.build.assetsInlineLimit) &&

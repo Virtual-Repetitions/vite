@@ -225,6 +225,13 @@ export interface LibraryOptions {
    * format as an argument.
    */
   fileName?: string | ((format: ModuleFormat) => string)
+  /**
+   * We replace asset to base64 for lib mode by default, It can handle most of the contexts.
+   * But it will add a lot of size in JS/CSS. When you enable this option, vite will emit asset to file and generate original import code in JS.
+   * When user use this lib with bundler, it can get correct image url.
+   * @default false
+   */
+  emitAssetsWithModule?: boolean
 }
 
 export type LibraryFormats = 'es' | 'cjs' | 'umd' | 'iife'
