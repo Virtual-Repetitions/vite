@@ -303,6 +303,8 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
   // since output formats have no effect on the generated CSS.
   let outputToExtractedCSSMap: Map<NormalizedOutputOptions, string>
   let hasEmitted = false
+  const isEmitAssetsWithModule =
+    config.build.lib && config.build.lib.emitAssetsWithModule
 
   const rollupOptionsOutput = config.build.rollupOptions.output
   const assetFileNames = (
@@ -478,6 +480,9 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
 
         const toRelative = (filename: string, importer: string) => {
           // relative base + extracted CSS
+          if (!config.build.cssCodeSplit) {
+            return filename.startsWith('.') ? filename : './' + filename
+          }
           const relativePath = path.posix.relative(cssAssetDirname!, filename)
           return relativePath.startsWith('.')
             ? relativePath
@@ -493,7 +498,7 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
             'asset',
             cssAssetName,
             'css',
-            config,
+            { ...config, base: isEmitAssetsWithModule ? './' : config.base },
             toRelative
           )
         })
